@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IoTCM — Bioengineering Monitoring Tool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#f5f4f0; --surface:#fff; --surface2:#f0efe9;
+      --border:rgba(60,60,40,0.12); --border-med:rgba(60,60,40,0.22);
+      --text:#1a1a14; --text-secondary:#6b6b58; --text-tertiary:#9a9a82;
+      --green:#1a7a58; --green-light:#d6f0e5; --green-mid:#4aad82;
+      --amber:#9a6010; --amber-light:#fdf0d6;
+      --red:#aa2c2c; --red-light:#fde8e8;
+      --blue:#1a5080; --blue-light:#deeaf7;
+      --accent:#2d6e50; --radius:10px; --radius-sm:6px;
+    }
+    body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; line-height:1.6; font-size:15px; }
+    header { background:var(--surface); border-bottom:1px solid var(--border); padding:0 2rem; display:flex; align-items:center; justify-content:space-between; height:60px; position:sticky; top:0; z-index:100; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .logo-mark { width:32px; height:32px; background:var(--accent); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; }
+    .logo-mark svg { width:18px; height:18px; }
+    .logo-name { font-size:15px; font-weight:500; letter-spacing:-0.01em; }
+    .logo-sub { font-size:11px; color:var(--text-tertiary); margin-top:-2px; }
+    .header-badge { font-size:11px; padding:3px 10px; background:var(--green-light); color:var(--green); border-radius:20px; font-weight:500; }
+    .layout { display:flex; min-height:calc(100vh - 60px); }
+    aside { width:220px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); padding:1.5rem 0; position:sticky; top:60px; height:calc(100vh - 60px); overflow-y:auto; }
+    .nav-section-label { font-size:10px; font-weight:500; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-tertiary); padding:0 1.25rem; margin-bottom:6px; margin-top:1rem; }
+    .nav-section-label:first-child { margin-top:0; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:8px 1.25rem; font-size:13.5px; color:var(--text-secondary); cursor:pointer; border-left:2px solid transparent; transition:all 0.12s; user-select:none; }
+    .nav-item:hover { background:var(--surface2); color:var(--text); }
+    .nav-item.active { background:var(--green-light); color:var(--green); border-left-color:var(--green); font-weight:500; }
+    .nav-item svg { width:16px; height:16px; flex-shrink:0; opacity:0.7; }
+    .nav-item.active svg { opacity:1; }
+    main { flex:1; padding:2rem 2.5rem; max-width:980px; }
+    .page-header { margin-bottom:1.5rem; }
+    .page-title { font-size:22px; font-weight:500; letter-spacing:-0.02em; }
+    .page-desc { font-size:13px; color:var(--text-secondary); margin-top:4px; }
+    .screen { display:none; }
+    .screen.active { display:block; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem 1.5rem; }
+    .card-label { font-size:10px; font-weight:500; text-transform:uppercase; letter-spacing:0.09em; color:var(--text-tertiary); margin-bottom:10px; }
+    .metrics-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:10px; margin-bottom:1.25rem; }
+    .metric-card { background:var(--surface2); border-radius:var(--radius-sm); padding:14px 16px; border:1px solid var(--border); }
+    .metric-label { font-size:11px; color:var(--text-tertiary); margin-bottom:5px; }
+    .metric-value { font-size:26px; font-weight:300; font-family:'DM Mono',monospace; letter-spacing:-0.02em; }
+    .metric-unit { font-size:13px; color:var(--text-secondary); margin-top:2px; }
+    .badge { display:inline-block; font-size:11px; padding:2px 9px; border-radius:20px; font-weight:500; }
+    .badge-green { background:var(--green-light); color:var(--green); }
+    .badge-amber { background:var(--amber-light); color:var(--amber); }
+    .badge-red { background:var(--red-light); color:var(--red); }
+    .progress-bar { height:5px; background:var(--surface2); border-radius:3px; overflow:hidden; }
+    .progress-fill { height:100%; border-radius:3px; transition:width 0.5s ease; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    button { font-family:'DM Sans',sans-serif; font-size:13px; padding:7px 16px; border-radius:var(--radius-sm); border:1px solid var(--border-med); background:var(--surface); color:var(--text); cursor:pointer; transition:all 0.12s; display:inline-flex; align-items:center; gap:6px; }
+    button:hover { background:var(--surface2); }
+    button:active { transform:scale(0.98); }
+    .btn-primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .btn-primary:hover { background:var(--green); border-color:var(--green); }
+    .btn-group { display:flex; gap:8px; flex-wrap:wrap; margin-top:1rem; }
+    select { font-family:'DM Sans',sans-serif; font-size:13px; padding:6px 10px; border-radius:var(--radius-sm); border:1px solid var(--border-med); background:var(--surface); color:var(--text); cursor:pointer; }
+    .filter-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+    .filter-row label { font-size:12px; display:flex; gap:5px; align-items:center; cursor:pointer; padding:4px 10px; border-radius:20px; border:1px solid var(--border); background:var(--surface); transition:all 0.12s; }
+    .filter-row label:hover { background:var(--surface2); }
+    .map-wrap { position:relative; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .map-wrap svg { display:block; width:100%; }
+    .tooltip { position:absolute; background:var(--surface); border:1px solid var(--border-med); border-radius:var(--radius-sm); padding:10px 14px; font-size:12px; pointer-events:none; z-index:50; min-width:195px; max-width:240px; box-shadow:0 4px 16px rgba(0,0,0,0.1); }
+    .tooltip-title { font-weight:500; font-size:13px; margin-bottom:8px; color:var(--text); }
+    .tooltip-row { display:flex; justify-content:space-between; gap:14px; padding:2px 0; color:var(--text-secondary); }
+    .tooltip-row span:last-child { color:var(--text); font-weight:500; font-family:'DM Mono',monospace; }
+    .tooltip-why { font-size:11px; color:var(--text-secondary); margin-top:8px; padding-top:8px; border-top:1px solid var(--border); line-height:1.5; font-style:italic; }
+    .sensor-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(195px,1fr)); gap:10px; margin-top:10px; }
+    .sensor-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; }
+    .sensor-card-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .sensor-card-icon { width:24px; height:24px; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .sensor-card-name { font-size:13px; font-weight:500; }
+    .sensor-card-desc { font-size:12px; color:var(--text-secondary); line-height:1.55; }
+    .sensor-card-meta { font-size:11px; color:var(--text-tertiary); margin-top:6px; }
+    .structure-info { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 16px; margin-bottom:14px; font-size:13px; color:var(--text-secondary); line-height:1.65; }
+    .structure-info strong { color:var(--text); }
+    .hotspot-item { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; align-items:flex-start; }
+    .hotspot-item:last-child { border-bottom:none; }
+    .hotspot-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+    .hotspot-label { font-weight:500; color:var(--text); }
+    .hotspot-desc { color:var(--text-secondary); font-size:12px; margin-top:1px; }
+    .param-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); }
+    .param-row:last-child { border-bottom:none; }
+    .param-info { flex:1; }
+    .param-name { font-size:13px; color:var(--text); margin-bottom:5px; display:flex; justify-content:space-between; }
+    .param-val { font-family:'DM Mono',monospace; font-weight:500; }
+    .layer-item { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:10px; }
+    .layer-header { display:flex; align-items:center; gap:12px; padding:14px 16px; cursor:pointer; background:var(--surface); transition:background 0.12s; user-select:none; }
+    .layer-header:hover { background:var(--surface2); }
+    .layer-icon { width:38px; height:38px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .layer-icon svg { width:20px; height:20px; }
+    .layer-title { font-size:14px; font-weight:500; }
+    .layer-sub { font-size:12px; color:var(--text-secondary); margin-top:1px; }
+    .layer-chevron { margin-left:auto; color:var(--text-tertiary); transition:transform 0.2s; }
+    .layer-chevron.open { transform:rotate(180deg); }
+    .layer-body { display:none; padding:0 16px 14px; background:var(--surface); border-top:1px solid var(--border); }
+    .layer-body.open { display:block; }
+    .layer-item-row { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+    .layer-item-row:last-child { border-bottom:none; }
+    .layer-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); margin-top:7px; flex-shrink:0; }
+    .wizard-step { margin-bottom:1rem; }
+    .wizard-step-title { font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-tertiary); margin-bottom:8px; }
+    .wizard-options { display:flex; gap:8px; flex-wrap:wrap; }
+    .wizard-btn { font-size:13px; padding:7px 16px; border-radius:20px; border:1px solid var(--border-med); background:var(--surface); color:var(--text-secondary); cursor:pointer; transition:all 0.12s; }
+    .wizard-btn:hover { background:var(--surface2); color:var(--text); }
+    .wizard-btn.selected { background:var(--green-light); color:var(--green); border-color:var(--green-mid); font-weight:500; }
+    .protocol-row { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); align-items:flex-start; }
+    .protocol-row:last-child { border-bottom:none; }
+    .protocol-key { font-size:12px; font-weight:500; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em; width:140px; flex-shrink:0; padding-top:1px; }
+    .protocol-val { font-size:13px; color:var(--text); }
+    .info-box { background:var(--blue-light); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; color:var(--blue); margin-top:4px; margin-bottom:14px; }
+    .dataflow { display:flex; align-items:center; flex-wrap:wrap; margin-top:1rem; }
+    .dataflow-node { text-align:center; padding:10px 14px; }
+    .dataflow-icon { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 6px; }
+    .dataflow-icon svg { width:22px; height:22px; }
+    .dataflow-label { font-size:12px; color:var(--text-secondary); }
+    .dataflow-arrow { color:var(--text-tertiary); font-size:20px; padding:0 2px; }
+    .nrl-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .nrl-row { display:flex; align-items:center; gap:8px; font-size:13px; padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface); }
+    .nrl-icon { width:18px; height:18px; flex-shrink:0; }
+    .footnote { font-size:11px; color:var(--text-tertiary); margin-top:10px; display:flex; align-items:center; gap:6px; }
+    @media (max-width:700px) { aside{display:none;} main{padding:1rem;} .grid-2,.nrl-grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="white" stroke-width="1.5"/><path d="M5 11 Q7 7 9 9 Q11 11 13 7" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <div class="logo-name">IoTCM</div>
+      <div class="logo-sub">Bioengineering Monitor</div>
+    </div>
+  </div>
+  <span class="header-badge">Prototype v0.2</span>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="nav-section-label">Tool</div>
+    <div class="nav-item active" onclick="showScreen('map',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3L3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+      Sensor map
+    </div>
+    <div class="nav-item" onclick="showScreen('health',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Health index
+    </div>
+    <div class="nav-item" onclick="showScreen('wizard',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Setup wizard
+    </div>
+    <div class="nav-item" onclick="showScreen('iot',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3l-4 4-4-4"/></svg>
+      IoT layers
+    </div>
+    <div class="nav-section-label">About</div>
+    <div class="nav-item" onclick="showScreen('about',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Documentation
+    </div>
+  </aside>
+
+  <main>
+
+    <!-- SENSOR MAP -->
+    <div id="screen-map" class="screen active">
+      <div class="page-header">
+        <div class="page-title">Sensor placement map</div>
+        <div class="page-desc">Select a bioengineering structure to view its cross-section, recommended sensor positions, and monitoring hotspots. Hover or click any sensor marker for details and reasoning.</div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px;">
+        <div>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.08em;">Structure type</div>
+          <select id="structureType" onchange="switchStructure()">
+            <option value="crib">Live crib wall</option>
+            <option value="slope">Vegetated slope</option>
+            <option value="bank">Riverbank revetment</option>
+            <option value="fascine">Fascine / brush drain</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.08em;">Show sensors</div>
+          <div class="filter-row">
+            <label><input type="checkbox" id="chk-moisture" checked onchange="renderSensors()"> <span style="color:#1a7a58;font-size:15px;">●</span> Moisture</label>
+            <label><input type="checkbox" id="chk-ph" checked onchange="renderSensors()"> <span style="color:#aa2c2c;font-size:15px;">●</span> pH</label>
+            <label><input type="checkbox" id="chk-disp" checked onchange="renderSensors()"> <span style="color:#9a6010;font-size:14px;">■</span> Displacement</label>
+            <label><input type="checkbox" id="chk-temp" checked onchange="renderSensors()"> <span style="color:#1a5080;font-size:14px;">▲</span> Temperature</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="map-wrap" style="position:relative;">
+        <svg id="mapSvg" viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cross-section of a bioengineering structure with sensor markers">
+          <g id="structure-bg"></g>
+          <g id="sensor-layer"></g>
+          <g id="legend-layer"></g>
+        </svg>
+        <div id="map-tooltip" class="tooltip" style="display:none;"></div>
+      </div>
+
+      <div id="structure-info-box" class="structure-info" style="margin-top:12px;"></div>
+
+      <div style="margin-top:14px;">
+        <div class="card-label" style="margin-bottom:8px;">What each sensor measures — and why it matters</div>
+        <div class="sensor-cards">
+          <div class="sensor-card">
+            <div class="sensor-card-header">
+              <div class="sensor-card-icon" style="background:#d6f0e5;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a7a58" stroke-width="2.2"><path d="M12 2v6"/><ellipse cx="12" cy="14" rx="5" ry="6"/></svg></div>
+              <div class="sensor-card-name" style="color:#1a7a58;">Soil moisture</div>
+            </div>
+            <div class="sensor-card-desc">Measures volumetric water content (%) in the soil. Critical for detecting saturation events that reduce effective stress and can trigger slope failure or crib wall instability. Also governs plant-available water for establishing vegetation.</div>
+            <div class="sensor-card-meta">Typical range: 10–70% VWC &nbsp;·&nbsp; Alert: &gt;55–65% (structure-dependent)</div>
+          </div>
+          <div class="sensor-card">
+            <div class="sensor-card-header">
+              <div class="sensor-card-icon" style="background:#fde8e8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aa2c2c" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="12" y1="8" x2="12" y2="16"/></svg></div>
+              <div class="sensor-card-name" style="color:#aa2c2c;">Soil pH</div>
+            </div>
+            <div class="sensor-card-desc">Monitors soil acidity and alkalinity on a 0–14 scale. Most bioengineering plant species (willow, alder, pioneer grasses) require pH 5.5–7.5. Outside this range, nutrient uptake is impaired and root development fails, compromising long-term structural reinforcement.</div>
+            <div class="sensor-card-meta">Optimal: 5.5–7.5 &nbsp;·&nbsp; Alert: &lt;5.0 or &gt;8.0</div>
+          </div>
+          <div class="sensor-card">
+            <div class="sensor-card-header">
+              <div class="sensor-card-icon" style="background:#fdf0d6;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a6010" stroke-width="2.2"><path d="M5 9l7-7 7 7M5 15l7 7 7-7"/></svg></div>
+              <div class="sensor-card-name" style="color:#9a6010;">Displacement</div>
+            </div>
+            <div class="sensor-card-desc">Detects millimetre-scale movement at structural joints, wall toe, or slope surface using tilt sensors or MEMS accelerometers. Provides early warning of settlement, creep, or incipient failure days or weeks before it becomes visible — essential for preventive maintenance.</div>
+            <div class="sensor-card-meta">Typical range: 0–20 mm &nbsp;·&nbsp; Alert: &gt;5 mm cumulative</div>
+          </div>
+          <div class="sensor-card">
+            <div class="sensor-card-header">
+              <div class="sensor-card-icon" style="background:#deeaf7;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a5080" stroke-width="2.2"><path d="M12 2v10"/><circle cx="12" cy="18" r="4"/></svg></div>
+              <div class="sensor-card-name" style="color:#1a5080;">Soil temperature</div>
+            </div>
+            <div class="sensor-card-desc">Tracks soil temperature at depth. Needed to correctly interpret moisture sensor outputs (temperature affects dielectric readings). Also monitors frost penetration depth, which can damage root systems, cause frost heave in structural elements, and trigger freeze–thaw erosion.</div>
+            <div class="sensor-card-meta">Range: −5 to +40 °C &nbsp;·&nbsp; Monitor for freeze/thaw cycles</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="card-label">Key monitoring hotspots — <span id="hotspot-structure-name">Live crib wall</span></div>
+        <div id="hotspot-list"></div>
+      </div>
+
+      <div class="footnote">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Sensor positions are conceptual. Actual placement must be adapted to site conditions, structure geometry, and local geotechnical assessment.
+      </div>
+    </div>
+
+    <!-- HEALTH INDEX -->
+    <div id="screen-health" class="screen">
+      <div class="page-header">
+        <div class="page-title">Health index</div>
+        <div class="page-desc">Aggregated performance scores derived from all active sensors. Readings are compared against defined thresholds to produce geotechnical and ecological sub-scores. EU NRL compliance is derived automatically from these scores.</div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Overall health index</div>
+          <div class="metric-value" id="hi-overall" style="color:var(--green);">82</div>
+          <div class="metric-unit">/ 100 — Good</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Geotechnical stability</div>
+          <div class="metric-value" id="hi-geo" style="color:var(--green);">88</div>
+          <div class="metric-unit">/ 100</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Ecological health</div>
+          <div class="metric-value" id="hi-eco" style="color:var(--amber);">71</div>
+          <div class="metric-unit">/ 100</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Active sensors</div>
+          <div class="metric-value" style="color:var(--blue);">8</div>
+          <div class="metric-unit">all online</div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-bottom:14px;">
+        <div class="card">
+          <div class="card-label">Parameter readings</div>
+          <div id="param-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Health trend — last 7 days (simulated)</div>
+          <div style="position:relative;width:100%;height:195px;margin-top:8px;">
+            <canvas id="trendChart"></canvas>
+          </div>
+          <div style="display:flex;gap:14px;margin-top:10px;font-size:12px;color:var(--text-secondary);">
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;border-radius:2px;background:#1a7a58;display:inline-block;"></span>Overall</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;border-radius:2px;background:#1a5080;display:inline-block;"></span>Geotechnical</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;border-radius:2px;background:#9a6010;display:inline-block;"></span>Ecological</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">EU Nature Restoration Law — compliance indicators</div>
+        <div class="nrl-grid">
+          <div class="nrl-row"><svg class="nrl-icon" viewBox="0 0 24 24" fill="none" stroke="#1a7a58" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>Slope stability maintained</div>
+          <div class="nrl-row"><svg class="nrl-icon" viewBox="0 0 24 24" fill="none" stroke="#1a7a58" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>Vegetation cover &gt;60%</div>
+          <div class="nrl-row"><svg class="nrl-icon" viewBox="0 0 24 24" fill="none" stroke="#1a7a58" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>Soil pH within target range</div>
+          <div class="nrl-row"><svg class="nrl-icon" viewBox="0 0 24 24" fill="none" stroke="#9a6010" stroke-width="2"><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/><circle cx="12" cy="12" r="10"/></svg><span>Soil moisture — caution <span class="badge badge-amber" style="margin-left:6px;">Review</span></span></div>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button onclick="simulateUpdate()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Simulate new reading
+        </button>
+      </div>
+    </div>
+
+    <!-- SETUP WIZARD -->
+    <div id="screen-wizard" class="screen">
+      <div class="page-header">
+        <div class="page-title">Setup wizard</div>
+        <div class="page-desc">Answer three questions to generate a tailored monitoring protocol: recommended sensors, gateway hardware, connectivity option, and data platform — all adapted to your structure type and budget.</div>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="wizard-step">
+          <div class="wizard-step-title">Step 1 — Structure type</div>
+          <div class="wizard-options">
+            <button class="wizard-btn" onclick="selectWizard('structure','crib',this)">Live crib wall</button>
+            <button class="wizard-btn" onclick="selectWizard('structure','slope',this)">Vegetated slope</button>
+            <button class="wizard-btn" onclick="selectWizard('structure','bank',this)">Riverbank</button>
+            <button class="wizard-btn" onclick="selectWizard('structure','fascine',this)">Fascine / brush drain</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);margin:14px 0;"></div>
+        <div class="wizard-step">
+          <div class="wizard-step-title">Step 2 — Primary monitoring goal</div>
+          <div class="wizard-options">
+            <button class="wizard-btn" onclick="selectWizard('goal','stability',this)">Geotechnical stability</button>
+            <button class="wizard-btn" onclick="selectWizard('goal','ecology',this)">Ecological health</button>
+            <button class="wizard-btn" onclick="selectWizard('goal','both',this)">Both</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);margin:14px 0;"></div>
+        <div class="wizard-step">
+          <div class="wizard-step-title">Step 3 — Budget level</div>
+          <div class="wizard-options">
+            <button class="wizard-btn" onclick="selectWizard('budget','low',this)">Low (&lt;€500)</button>
+            <button class="wizard-btn" onclick="selectWizard('budget','mid',this)">Medium (€500–2,000)</button>
+            <button class="wizard-btn" onclick="selectWizard('budget','high',this)">High (&gt;€2,000)</button>
+          </div>
+        </div>
+      </div>
+      <div id="wizard-output" style="display:none;">
+        <div class="card">
+          <div class="card-label">Recommended monitoring protocol</div>
+          <div class="info-box" id="wizard-context"></div>
+          <div id="wizard-result"></div>
+          <div class="btn-group">
+            <button class="btn-primary" onclick="exportProtocol()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export as .txt
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IOT LAYERS -->
+    <div id="screen-iot" class="screen">
+      <div class="page-header">
+        <div class="page-title">IoT architecture</div>
+        <div class="page-desc">The monitoring system is organised into four layers — from physical sensors in the ground to the user-facing dashboard. Each layer can be implemented independently and upgraded over time as budget and needs grow.</div>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-label">Data flow</div>
+        <div class="dataflow">
+          <div class="dataflow-node"><div class="dataflow-icon" style="background:#d6f0e5;"><svg viewBox="0 0 24 24" fill="none" stroke="#1a7a58" stroke-width="1.8"><path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><circle cx="12" cy="20" r="1" fill="#1a7a58"/></svg></div><div class="dataflow-label">Sensors</div></div>
+          <div class="dataflow-arrow">→</div>
+          <div class="dataflow-node"><div class="dataflow-icon" style="background:#deeaf7;"><svg viewBox="0 0 24 24" fill="none" stroke="#1a5080" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3l-4 4-4-4"/></svg></div><div class="dataflow-label">Gateway</div></div>
+          <div class="dataflow-arrow">→</div>
+          <div class="dataflow-node"><div class="dataflow-icon" style="background:#fdf0d6;"><svg viewBox="0 0 24 24" fill="none" stroke="#9a6010" stroke-width="1.8"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg></div><div class="dataflow-label">Cloud</div></div>
+          <div class="dataflow-arrow">→</div>
+          <div class="dataflow-node"><div class="dataflow-icon" style="background:#e8e6f8;"><svg viewBox="0 0 24 24" fill="none" stroke="#3c3489" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><div class="dataflow-label">Dashboard</div></div>
+        </div>
+      </div>
+      <div id="iot-accordion"></div>
+    </div>
+
+    <!-- ABOUT -->
+    <div id="screen-about" class="screen">
+      <div class="page-header">
+        <div class="page-title">Documentation</div>
+        <div class="page-desc">Scope, methodology, assumptions, and limitations of the IoTCM prototype.</div>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-label">Purpose</div>
+        <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.75;">The IoT Continuous Monitoring (IoTCM) tool provides a standardised conceptual framework for sensor-based monitoring of bioengineering structures such as live crib walls, vegetated slopes, riverbanks, and fascine drains. It addresses the absence of long-term, data-driven performance records by defining critical measurement parameters and a cost-effective IoT architecture accessible to engineers, environmental authorities, researchers, and NGOs.</p>
+      </div>
+      <div class="grid-2" style="margin-bottom:14px;">
+        <div class="card">
+          <div class="card-label">Scope</div>
+          <ul style="font-size:13px;color:var(--text-secondary);line-height:2;padding-left:16px;">
+            <li>Sensor placement guidance per structure type</li>
+            <li>Parameter threshold definition</li>
+            <li>IoT hardware recommendations by budget</li>
+            <li>Aggregated health index scoring</li>
+            <li>EU NRL compliance indicators</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-label">Monitored parameters</div>
+          <ul style="font-size:13px;color:var(--text-secondary);line-height:2;padding-left:16px;">
+            <li>Soil moisture (% volumetric water content)</li>
+            <li>Soil pH</li>
+            <li>Structural displacement (mm)</li>
+            <li>Soil temperature (°C)</li>
+            <li>Optional: pore water pressure, rainfall</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-label">Assumptions</div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.75;">Sensor readings are assumed to be calibrated within manufacturer specifications. Health index thresholds are based on generalised literature values and should be adapted to site-specific conditions before deployment. This prototype uses simulated data; a production version would connect to a live IoT backend such as ThingsBoard or AWS IoT Core.</p>
+      </div>
+      <div class="card">
+        <div class="card-label">Limitations</div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.75;">This tool does not replace site-specific geotechnical assessment or expert consultation. It does not account for extreme weather events, sensor fouling, or sensor failure. Spatial analysis is schematic rather than GIS-based. The EU NRL compliance check is indicative only and does not substitute official reporting obligations. All data shown in this prototype is simulated.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ===== STRUCTURE DEFINITIONS ===== */
+var structures = {
+
+  crib: {
+    name: 'Live crib wall',
+    description: '<strong>Live crib wall (Lebendverbau):</strong> A retaining structure built from interlocking timber logs, backfilled with soil and planted with rooted cuttings. The vegetation root system reinforces the fill over time while the timber provides immediate structural support. Widely used on steep slopes (30°–70°) for erosion control and slope stabilisation.',
+    hotspots: [
+      {color:'#aa2c2c', label:'Structural joints (top, mid, base)', desc:'The log intersections are the most mechanically stressed points. Displacement sensors here detect settlement or rotation before visible failure.'},
+      {color:'#1a7a58', label:'Crib fill — root zone', desc:'The backfill soil hosts the plant root network. Moisture and pH sensors track whether conditions allow vegetation to establish and reinforce the structure.'},
+      {color:'#1a7a58', label:'Upslope infiltration zone', desc:'Moisture sensors here detect rainfall-driven saturation that increases hydraulic pressure on the back of the wall.'},
+      {color:'#1a5080', label:'Wall toe / drainage zone', desc:'The base of the wall is vulnerable to scour and waterlogging. A displacement sensor at the toe detects forward sliding.'}
+    ],
+    sensors: [
+      {id:'S1',type:'moisture',x:155,y:162,label:'Moisture S1',zone:'Crib fill (upper)',val:42,unit:'%',min:20,max:60,status:'ok',why:'Monitors saturation in the structural backfill. Excess moisture reduces effective stress, increasing the risk of internal failure.'},
+      {id:'S2',type:'moisture',x:295,y:195,label:'Moisture S2',zone:'Root zone',val:58,unit:'%',min:20,max:60,status:'warning',why:'Tracks water availability for planted cuttings. Too wet = anaerobic conditions; too dry = plant stress and root die-off.'},
+      {id:'S3',type:'ph',x:170,y:218,label:'pH S1',zone:'Crib fill (mid)',val:6.8,unit:'',min:5.5,max:7.5,status:'ok',why:'Soil pH controls nutrient availability for the cuttings establishing in the backfill. Outside 5.5–7.5, establishment fails.'},
+      {id:'S4',type:'ph',x:380,y:172,label:'pH S2',zone:'Upslope soil',val:5.2,unit:'',min:5.5,max:7.5,status:'alert',why:'Upslope pH influences natural revegetation migrating onto the structure. Low pH limits species diversity.'},
+      {id:'S5',type:'disp',x:103,y:148,label:'Displacement S1',zone:'Joint — top',val:2.1,unit:'mm',min:0,max:5,status:'ok',why:'Top-joint displacement indicates tilting or overturning of the crib under slope pressure.'},
+      {id:'S6',type:'disp',x:103,y:215,label:'Displacement S2',zone:'Joint — mid',val:4.7,unit:'mm',min:0,max:5,status:'warning',why:'Mid-height movement suggests differential settlement or internal shear within the crib structure.'},
+      {id:'S7',type:'temp',x:240,y:132,label:'Temp S1',zone:'Wall surface',val:18.3,unit:'°C',min:5,max:35,status:'ok',why:'Surface temperature aids interpretation of moisture readings and identifies frost risk to planted cuttings.'},
+      {id:'S8',type:'temp',x:430,y:218,label:'Temp S2',zone:'Deep soil',val:12.1,unit:'°C',min:5,max:35,status:'ok',why:'Deep soil temperature tracks frost penetration depth, which can heave structural elements and damage roots.'}
+    ],
+    draw: function(g) {
+      g.innerHTML = `
+        <rect width="720" height="320" fill="#e8f0df"/>
+        <polygon points="0,185 165,115 720,115 720,320 0,320" fill="#c4d8a0"/>
+        <polygon points="0,272 720,272 720,320 0,320" fill="#b0a898"/>
+        <line x1="0" y1="272" x2="720" y2="272" stroke="#988870" stroke-width="1"/>
+        <rect x="95" y="115" width="148" height="157" rx="2" fill="#d4e6f5" stroke="#3a7acc" stroke-width="1.5"/>
+        <rect x="96" y="116" width="146" height="155" fill="#b8d898" opacity="0.45"/>
+        <line x1="95" y1="148" x2="243" y2="148" stroke="#1a4a7a" stroke-width="2.5"/>
+        <line x1="95" y1="181" x2="243" y2="181" stroke="#1a4a7a" stroke-width="2.5"/>
+        <line x1="95" y1="214" x2="243" y2="214" stroke="#1a4a7a" stroke-width="2.5"/>
+        <line x1="95" y1="247" x2="243" y2="247" stroke="#1a4a7a" stroke-width="2.5"/>
+        <line x1="128" y1="115" x2="128" y2="272" stroke="#1a4a7a" stroke-width="1.8"/>
+        <line x1="163" y1="115" x2="163" y2="272" stroke="#1a4a7a" stroke-width="1.8"/>
+        <line x1="198" y1="115" x2="198" y2="272" stroke="#1a4a7a" stroke-width="1.8"/>
+        <rect x="105" y="92" width="128" height="20" rx="4" fill="#1a4a7a" opacity="0.88"/>
+        <text x="169" y="106" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="11" fill="white" font-weight="500">Live crib wall</text>
+        <rect x="86" y="142" width="12" height="12" rx="1" fill="none" stroke="#aa2c2c" stroke-width="1.2" stroke-dasharray="2,1.5"/>
+        <rect x="86" y="175" width="12" height="12" rx="1" fill="none" stroke="#aa2c2c" stroke-width="1.2" stroke-dasharray="2,1.5"/>
+        <rect x="86" y="208" width="12" height="12" rx="1" fill="none" stroke="#aa2c2c" stroke-width="1.2" stroke-dasharray="2,1.5"/>
+        <ellipse cx="310" cy="200" rx="76" ry="50" fill="#7ec870" opacity="0.18" stroke="#1a7a58" stroke-width="1.2" stroke-dasharray="5,4"/>
+        <text x="310" y="203" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="10" fill="#1a7a58">root zone</text>
+        <line x1="0" y1="252" x2="720" y2="252" stroke="#3a7acc" stroke-width="1" stroke-dasharray="7,5" opacity="0.5"/>
+        <text x="695" y="248" text-anchor="end" font-family="'DM Sans',sans-serif" font-size="10" fill="#1a5080" opacity="0.75">water table</text>
+        <!-- trees with trunk + crown (NOT blobs) -->
+        <line x1="162" y1="115" x2="162" y2="99" stroke="#5a3a1a" stroke-width="2.2"/>
+        <ellipse cx="162" cy="92" rx="11" ry="10" fill="#2e7d32" opacity="0.88"/>
+        <ellipse cx="162" cy="89" rx="6" ry="5" fill="#43a047" opacity="0.6"/>
+        <line x1="200" y1="115" x2="200" y2="97" stroke="#5a3a1a" stroke-width="2.2"/>
+        <ellipse cx="200" cy="90" rx="12" ry="10" fill="#388e3c" opacity="0.82"/>
+        <line x1="280" y1="115" x2="280" y2="100" stroke="#5a3a1a" stroke-width="2"/>
+        <ellipse cx="280" cy="94" rx="10" ry="9" fill="#2e7d32" opacity="0.75"/>
+        <!-- grass tufts -->
+        <path d="M345 115 Q346 106 347 115" stroke="#4caf50" stroke-width="1.6" fill="none"/>
+        <path d="M350 115 Q352 104 354 115" stroke="#388e3c" stroke-width="1.6" fill="none"/>
+        <path d="M365 115 Q367 107 369 115" stroke="#4caf50" stroke-width="1.6" fill="none"/>
+        <path d="M430 115 Q431 106 432 115" stroke="#4caf50" stroke-width="1.6" fill="none"/>
+        <path d="M436 115 Q438 105 440 115" stroke="#388e3c" stroke-width="1.6" fill="none"/>
+        <path d="M510 115 Q512 107 514 115" stroke="#4caf50" stroke-width="1.6" fill="none"/>
+        <path d="M518 115 Q519 106 520 115" stroke="#388e3c" stroke-width="1.6" fill="none"/>
+        <text x="400" y="104" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="10" fill="#2e7d32" font-style="italic">planted cuttings + slope vegetation</text>
+      `;
+    }
+  },
+
+  slope: {
+    name: 'Vegetated slope',
+    description: '<strong>Vegetated slope (Böschungsbegrünung):</strong> A graded earth slope stabilised primarily by vegetation — grass, shrubs, and pioneer species — whose roots reinforce the topsoil and reduce surface erosion. There are no structural timber or concrete elements; stability depends entirely on root cohesion, surface cover, and controlled drainage. Suitable for slopes up to ~35°.',
+    hotspots: [
+      {color:'#1a7a58', label:'Upper slope — infiltration zone', desc:'Rainwater enters the slope here. Moisture sensors detect saturation events that reduce root-reinforced shear strength, which is the key precursor to shallow landslides.'},
+      {color:'#1a7a58', label:'Mid-slope root reinforcement zone', desc:'The densest root network is typically 0.3–1.0 m deep. pH and moisture sensors here assess vegetation establishment quality.'},
+      {color:'#aa2c2c', label:'Slope toe — stress concentration', desc:'The base of the slope carries the highest shear stresses. Displacement sensors here are the earliest indicator of rotational or translational failure.'},
+      {color:'#1a5080', label:'Subsurface drainage layer', desc:'Temperature sensors at depth monitor pore water conditions and frost depth, both of which affect root viability and slope stability.'}
+    ],
+    sensors: [
+      {id:'S1',type:'moisture',x:270,y:148,label:'Moisture S1',zone:'Upper slope',val:38,unit:'%',min:15,max:55,status:'ok',why:'Saturation in the upper slope dramatically reduces root-reinforced shear strength, triggering shallow translational failures.'},
+      {id:'S2',type:'moisture',x:395,y:192,label:'Moisture S2',zone:'Mid-slope root zone',val:51,unit:'%',min:15,max:55,status:'warning',why:'Root-zone moisture tracks plant water stress and soil suction — both influence slope stability and vegetation health.'},
+      {id:'S3',type:'ph',x:320,y:172,label:'pH S1',zone:'Root zone soil',val:6.5,unit:'',min:5.5,max:7.5,status:'ok',why:'pH in the root zone affects grass and shrub establishment — the primary stabilisers on the slope surface.'},
+      {id:'S4',type:'ph',x:188,y:158,label:'pH S2',zone:'Upper slope soil',val:5.1,unit:'',min:5.5,max:7.5,status:'alert',why:'Low pH upslope may indicate acid leaching or aluminium toxicity, limiting pioneer plant colonisation.'},
+      {id:'S5',type:'disp',x:510,y:240,label:'Displacement S1',zone:'Slope toe',val:3.2,unit:'mm',min:0,max:8,status:'ok',why:'Toe displacement is the earliest detectable signal of rotational or translational slope failure.'},
+      {id:'S6',type:'disp',x:348,y:215,label:'Displacement S2',zone:'Mid-slope surface',val:1.8,unit:'mm',min:0,max:8,status:'ok',why:'Surface movement at mid-slope indicates creep or incipient shallow sliding in the rooted topsoil layer.'},
+      {id:'S7',type:'temp',x:458,y:168,label:'Temp S1',zone:'Shallow soil (0.2 m)',val:16.4,unit:'°C',min:5,max:35,status:'ok',why:'Shallow temperature tracks frost penetration, which can disrupt root systems and cause surface heave.'},
+      {id:'S8',type:'temp',x:578,y:220,label:'Temp S2',zone:'Deep soil (0.8 m)',val:10.2,unit:'°C',min:5,max:35,status:'ok',why:'Deep temperature affects pore water conditions and decomposition rates via freeze–thaw cycles.'}
+    ],
+    draw: function(g) {
+      g.innerHTML = `
+        <rect width="720" height="320" fill="#e8f0df"/>
+        <polygon points="130,115 720,115 720,275 130,275" fill="#c8d8a4"/>
+        <polygon points="80,275 130,115 720,115 720,275" fill="#ccd898"/>
+        <line x1="80" y1="275" x2="130" y2="115" stroke="#8aaa60" stroke-width="1.5"/>
+        <polygon points="0,275 720,275 720,320 0,320" fill="#b0a898"/>
+        <line x1="0" y1="275" x2="720" y2="275" stroke="#988870" stroke-width="1"/>
+        <rect x="390" y="92" width="150" height="20" rx="4" fill="#4a7a2a" opacity="0.85"/>
+        <text x="465" y="106" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="11" fill="white" font-weight="500">Vegetated slope</text>
+        <line x1="0" y1="248" x2="720" y2="248" stroke="#3a7acc" stroke-width="1" stroke-dasharray="7,5" opacity="0.5"/>
+        <text x="695" y="244" text-anchor="end" font-family="'DM Sans',sans-serif" font-size="10" fill="#1a5080" opacity="0.75">water table</text>
+        <ellipse cx="370" cy="200" rx="140" ry="55" fill="#7ec870" opacity="0.15" stroke="#1a7a58" stroke-width="1.2" stroke-dasharray="5,4"/>
+        <text x="370" y="203" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="10" fill="#1a7a58">root reinforcement zone</text>
+        <ellipse cx="508" cy="260" rx="55" ry="16" fill="none" stroke="#aa2c2c" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <text x="508" y="290" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="10" fill="#aa2c2c">slope toe</text>
+        <!-- grass tufts on slope face -->
+        <path d="M152 260 Q153 251 154 260" stroke="#4caf50" stroke-width="1.8" fill="none"/>
+        <path d="M157 260 Q159 249 161 260" stroke="#388e3c" stroke-width="1.8" fill="none"/>
+        <path d="M200 240 Q202 230 204 240" stroke="#4caf50" stroke-width="1.8" fill="none"/>
+        <path d="M207 238 Q209 229 211 238" stroke="#388e3c" stroke-width="1.8" fill="none"/>
+        <path d="M248 220 Q250 211 252 220" stroke="#4caf50" stroke-width="1.8" fill="none"/>
+        <path d="M255 217 Q257 208 259 217" stroke="#388e3c" stroke-width="1.8" fill="none"/>
+        <path d="M288 203 Q290 194 292 203" stroke="#4caf50" stroke-width="1.8" fill="none"/>
+        <!-- trees with trunks on upper slope -->
+        <line x1="340" y1="115" x2="340" y2="96" stroke="#5a3a1a" stroke-width="2.2"/>
+        <ellipse cx="340" cy="89" rx="13" ry="11" fill="#2e7d32" opacity="0.85"/>
+        <ellipse cx="340" cy="86" rx="7" ry="6" fill="#43a047" opacity="0.6"/>
+        <line x1="425" y1="115" x2="425" y2="95" stroke="#5a3a1a" stroke-width="2.2"/>
+        <ellipse cx="425" cy="88" rx="14" ry="12" fill="#388e3c" opacity="0.8"/>
+        <line x1="535" y1="115" x2="535" y2="97" stroke="#5a3a1a" stroke-width="2.2"/>
+        <ellipse cx="535" cy="90" rx="12" ry="10" fill="#2e7d32" opacity="0.8"/>
+        <line x1="622" y1="115" x2="622" y2="97" stroke="#5a3a1a" stroke-width="2.2"/>
+        <ellipse cx="622" cy="90" rx="12" ry="10" fill="#388e3c" opacity="0.75"/>
+        <text x="230" y="104" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="10" fill="#2e7d32" font-style="italic">grass cover + pioneer shrubs</text>
+      `;
+    }
+  },
+
+  bank: {
+    name: 'Riverbank revetment',
+    description: '<strong>Riverbank revetment (Ufersicherung):</strong> A bioengineered bank protection combining live plant material — willow stakes, reed planting, brush mattresses — with a stone or geotextile toe protection. It must resist hydraulic forces (flow velocity, wave action, scour) while enabling vegetation to establish for long-term biological stability. Common along streams and river restoration projects.',
+    hotspots: [
+      {color:'#1a5080', label:'Water line — dynamic erosion zone', desc:'The zone at and just below average water level experiences the most erosive forces. Displacement sensors detect bank recession before it is visible.'},
+      {color:'#1a7a58', label:'Planted willow / reed zone', desc:'Moisture and pH sensors here monitor whether hydraulic conditions support plant establishment and root penetration into bank material.'},
+      {color:'#aa2c2c', label:'Bank toe — scour zone', desc:'The bank toe is the most erosion-prone point. Displacement sensors here are the earliest indicator of scour-driven failure.'},
+      {color:'#1a7a58', label:'Upper bank — terrestrial zone', desc:'Above the flood line, moisture and temperature sensors track seasonal conditions affecting woody riparian species.'}
+    ],
+    sensors: [
+      {id:'S1',type:'moisture',x:310,y:178,label:'Moisture S1',zone:'Water-line zone',val:68,unit:'%',min:30,max:80,status:'warning',why:'Near-permanent saturation at the water line controls plant species suitability and root aerobic function.'},
+      {id:'S2',type:'moisture',x:200,y:150,label:'Moisture S2',zone:'Upper bank',val:44,unit:'%',min:20,max:65,status:'ok',why:'Upper-bank moisture governs woody species establishment above the flood line.'},
+      {id:'S3',type:'ph',x:265,y:165,label:'pH S1',zone:'Bank substrate',val:7.1,unit:'',min:5.5,max:8.0,status:'ok',why:'Riverbank pH can be elevated by carbonate-rich sediment; affects suitability for native willow and alder.'},
+      {id:'S4',type:'ph',x:150,y:148,label:'pH S2',zone:'Upper bank soil',val:5.3,unit:'',min:5.5,max:8.0,status:'alert',why:'Low pH on the upper bank limits colonisation by the target riparian plant community.'},
+      {id:'S5',type:'disp',x:370,y:218,label:'Displacement S1',zone:'Bank toe',val:5.8,unit:'mm',min:0,max:10,status:'warning',why:'Toe scour is the primary failure mechanism for riverbanks; early displacement detection is critical.'},
+      {id:'S6',type:'disp',x:278,y:192,label:'Displacement S2',zone:'Water-line revetment',val:2.2,unit:'mm',min:0,max:10,status:'ok',why:'Movement at the water line indicates bank recession due to lateral erosion or wave action.'},
+      {id:'S7',type:'temp',x:178,y:128,label:'Temp S1',zone:'Upper bank (0.3 m)',val:17.5,unit:'°C',min:2,max:38,status:'ok',why:'Riparian species are frost-sensitive; temperature data informs spring planting timing.'},
+      {id:'S8',type:'temp',x:430,y:196,label:'Temp S2',zone:'Submerged substrate',val:8.4,unit:'°C',min:2,max:38,status:'ok',why:'Submerged temperature affects microbial activity, nutrient cycling, and root metabolism in the saturated zone.'}
+    ],
+    draw: function(g) {
+      g.innerHTML = `
+        <rect width="720" height="320" fill="#e0ecf5"/>
+        <!-- river water -->
+        <polygon points="0,190 0,320 720,320 720,190" fill="#b8d8f0"/>
+        <line x1="0" y1="190" x2="720" y2="190" stroke="#5a9acc" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.7"/>
+        <!-- flow ripples -->
+        <path d="M60 215 Q120 210 180 215 Q240 220 300 215" stroke="#7ab8e8" stroke-width="1" fill="none" opacity="0.55"/>
+        <path d="M350 235 Q420 229 490 235 Q555 241 620 235" stroke="#7ab8e8" stroke-width="1" fill="none" opacity="0.5"/>
+        <!-- bank body -->
+        <polygon points="80,115 720,115 720,190 230,190 80,272 80,115" fill="#c8d898"/>
+        <polygon points="80,115 230,190 80,272" fill="#b8c888"/>
+        <!-- stone toe -->
+        <ellipse cx="155" cy="230" rx="75" ry="22" fill="#888878" opacity="0.55"/>
+        <text x="155" y="234" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="9" fill="#f0f0f0">stone toe protection</text>
+        <!-- bedrock -->
+        <polygon points="0,292 720,292 720,320 0,320" fill="#a09888" opacity="0.7"/>
+        <rect x="420" y="92" width="178" height="20" rx="4" fill="#1a5080" opacity="0.85"/>
+        <text x="509" y="106" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="11" fill="white" font-weight="500">Riverbank revetment</text>
+        <text x="590" y="245" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="11" fill="#1a5080" opacity="0.8">river / stream</text>
+        <text x="695" y="186" text-anchor="end" font-family="'DM Sans',sans-serif" font-size="10" fill="#1a5080" opacity="0.75">water line</text>
+        <!-- reeds at water edge — drawn as stems with seed heads -->
+        <line x1="242" y1="190" x2="240" y2="170" stroke="#5a8a40" stroke-width="1.8"/>
+        <ellipse cx="240" cy="165" rx="3" ry="7" fill="#7aaa58" opacity="0.85"/>
+        <line x1="257" y1="190" x2="256" y2="168" stroke="#4a7a38" stroke-width="1.8"/>
+        <ellipse cx="256" cy="163" rx="3" ry="6" fill="#8aba68" opacity="0.8"/>
+        <line x1="270" y1="190" x2="269" y2="171" stroke="#5a8a40" stroke-width="1.8"/>
+        <ellipse cx="269" cy="166" rx="3" ry="7" fill="#7aaa58" opacity="0.85"/>
+        <line x1="282" y1="190" x2="281" y2="172" stroke="#4a7a38" stroke-width="1.5"/>
+        <ellipse cx="281" cy="167" rx="2.5" ry="6" fill="#8aba68" opacity="0.75"/>
+        <text x="262" y="156" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="9" fill="#4a7a38" font-style="italic">reeds / willow</text>
+        <!-- willow trees (trunk + drooping crown) -->
+        <line x1="158" y1="185" x2="156" y2="158" stroke="#5a3a1a" stroke-width="2.2"/>
+        <ellipse cx="156" cy="150" rx="13" ry="15" fill="#3a8a30" opacity="0.8"/>
+        <path d="M152 153 Q143 170 140 180" stroke="#4a9a40" stroke-width="1.2" fill="none" opacity="0.75"/>
+        <path d="M160 151 Q168 167 168 177" stroke="#4a9a40" stroke-width="1.2" fill="none" opacity="0.75"/>
+        <line x1="335" y1="155" x2="333" y2="128" stroke="#5a3a1a" stroke-width="2.2"/>
+        <ellipse cx="333" cy="120" rx="15" ry="13" fill="#2e7d32" opacity="0.8"/>
+        <line x1="505" y1="133" x2="503" y2="108" stroke="#5a3a1a" stroke-width="2"/>
+        <ellipse cx="503" cy="101" rx="13" ry="11" fill="#388e3c" opacity="0.75"/>
+        <text x="430" y="130" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="10" fill="#2e7d32" font-style="italic">riparian trees (willow, alder)</text>
+      `;
+    }
+  },
+
+  fascine: {
+    name: 'Fascine / brush drain',
+    description: '<strong>Fascine / brush drain (Flechtzaun / Reisigpacklage):</strong> Bundles of live woody cuttings (willow, dogwood) staked along slope contours in shallow trenches. They intercept surface runoff, trap sediment upslope, and take root to form a living barrier. Typically used on gentle slopes (&lt;20°) for erosion control and as a precursor to fuller vegetation. Low cost and easy to install.',
+    hotspots: [
+      {color:'#1a7a58', label:'Fascine bundle — rooting zone', desc:'The key zone where cuttings take root. Moisture and pH sensors confirm soil conditions allow rooting in the first growing season (~7°C soil temperature triggers willow rooting).'},
+      {color:'#aa2c2c', label:'Upslope sediment trap', desc:'Sediment accumulates immediately upslope. Displacement sensors detect whether the fascine is holding position or being bypassed by concentrated flow.'},
+      {color:'#1a7a58', label:'Downslope seepage zone', desc:'Moisture sensors downslope confirm the fascine is intercepting and redistributing subsurface water effectively.'},
+      {color:'#1a5080', label:'Anchor stake positions', desc:'Stakes hold the bundle in place. Displacement sensors at stake heads indicate whether the structure is shifting under hydraulic or frost loading.'}
+    ],
+    sensors: [
+      {id:'S1',type:'moisture',x:235,y:210,label:'Moisture S1',zone:'Fascine trench',val:55,unit:'%',min:20,max:70,status:'warning',why:'High moisture in the trench zone is needed for rooting, but excess saturation causes anaerobic conditions and cutting die-off.'},
+      {id:'S2',type:'moisture',x:380,y:195,label:'Moisture S2',zone:'Downslope seepage',val:32,unit:'%',min:15,max:55,status:'ok',why:'Downslope moisture confirms the fascine is intercepting flow. Very dry conditions suggest bypass flow around the structure.'},
+      {id:'S3',type:'ph',x:260,y:190,label:'pH S1',zone:'Rooting substrate',val:6.4,unit:'',min:5.5,max:7.5,status:'ok',why:'Willow and dogwood cuttings are sensitive to very low pH; values below 5.0 drastically reduce rooting success.'},
+      {id:'S4',type:'ph',x:160,y:178,label:'pH S2',zone:'Upslope sediment',val:5.0,unit:'',min:5.5,max:7.5,status:'alert',why:'Trapped sediment pH affects which secondary species will colonise the accumulated material above the fascine.'},
+      {id:'S5',type:'disp',x:200,y:232,label:'Displacement S1',zone:'Bundle position (west)',val:1.4,unit:'mm',min:0,max:6,status:'ok',why:'Bundle movement indicates whether the fascine is being dislodged by surface runoff or frost heave.'},
+      {id:'S6',type:'disp',x:300,y:242,label:'Displacement S2',zone:'Bundle position (east)',val:4.1,unit:'mm',min:0,max:6,status:'warning',why:'Differential displacement between bundle sections suggests uneven hydraulic loading or stake failure.'},
+      {id:'S7',type:'temp',x:320,y:170,label:'Temp S1',zone:'Topsoil (0.1 m)',val:15.8,unit:'°C',min:0,max:38,status:'ok',why:'Spring soil temperature above ~7°C triggers rooting in willow cuttings — critical for first-season establishment.'},
+      {id:'S8',type:'temp',x:440,y:215,label:'Temp S2',zone:'Subsoil (0.4 m)',val:9.6,unit:'°C',min:0,max:38,status:'ok',why:'Subsoil temperature tracks frost depth to assess whether cutting roots are at risk during winter.'}
+    ],
+    draw: function(g) {
+      g.innerHTML = `
+        <defs><marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#5a9acc"/></marker></defs>
+        <rect width="720" height="320" fill="#e8f0df"/>
+        <polygon points="0,165 720,140 720,320 0,320" fill="#c4d898"/>
+        <polygon points="0,278 720,278 720,320 0,320" fill="#b0a898"/>
+        <line x1="0" y1="278" x2="720" y2="278" stroke="#988870" stroke-width="1"/>
+        <!-- fascine trench -->
+        <ellipse cx="260" cy="224" rx="125" ry="24" fill="#a08860" opacity="0.55"/>
+        <!-- fascine bundle -->
+        <ellipse cx="260" cy="220" rx="115" ry="19" fill="#8B5E3C" opacity="0.78"/>
+        <line x1="172" y1="220" x2="358" y2="220" stroke="#6a4428" stroke-width="1" opacity="0.5"/>
+        <line x1="178" y1="215" x2="345" y2="215" stroke="#6a4428" stroke-width="0.8" opacity="0.3"/>
+        <line x1="178" y1="225" x2="345" y2="225" stroke="#6a4428" stroke-width="0.8" opacity="0.3"/>
+        <text x="260" y="224" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="10" fill="white" font-weight="500">fascine bundle</text>
+        <!-- anchor stakes -->
+        <line x1="210" y1="200" x2="210" y2="250" stroke="#5a3a1a" stroke-width="3.5"/>
+        <polygon points="210,200 205,213 215,213" fill="#5a3a1a"/>
+        <line x1="260" y1="198" x2="260" y2="250" stroke="#5a3a1a" stroke-width="3.5"/>
+        <polygon points="260,198 255,211 265,211" fill="#5a3a1a"/>
+        <line x1="310" y1="200" x2="310" y2="250" stroke="#5a3a1a" stroke-width="3.5"/>
+        <polygon points="310,200 305,213 315,213" fill="#5a3a1a"/>
+        <text x="260" y="264" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="9" fill="#5a3a1a">anchor stakes</text>
+        <!-- sediment trap label -->
+        <polygon points="100,202 158,178 173,202" fill="#d4c890" opacity="0.62"/>
+        <text x="118" y="194" font-family="'DM Sans',sans-serif" font-size="9" fill="#8a8040" font-style="italic">sediment</text>
+        <text x="118" y="204" font-family="'DM Sans',sans-serif" font-size="9" fill="#8a8040" font-style="italic">trap</text>
+        <!-- label -->
+        <rect x="500" y="148" width="170" height="20" rx="4" fill="#6a7a38" opacity="0.85"/>
+        <text x="585" y="162" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="11" fill="white" font-weight="500">Fascine / brush drain</text>
+        <!-- live cuttings sprouting (stems with leaves) -->
+        <line x1="200" y1="198" x2="196" y2="175" stroke="#4a7a38" stroke-width="1.8"/>
+        <path d="M196 175 Q190 165 186 170" stroke="#4a7a38" stroke-width="1.3" fill="none"/>
+        <path d="M196 175 Q201 164 205 169" stroke="#4a7a38" stroke-width="1.3" fill="none"/>
+        <ellipse cx="186" cy="168" rx="4" ry="3" fill="#6aaa50" opacity="0.7"/>
+        <ellipse cx="205" cy="167" rx="4" ry="3" fill="#6aaa50" opacity="0.7"/>
+        <line x1="250" y1="196" x2="247" y2="170" stroke="#5a8a40" stroke-width="1.8"/>
+        <path d="M247 170 Q241 158 237 163" stroke="#5a8a40" stroke-width="1.3" fill="none"/>
+        <path d="M247 170 Q253 158 258 162" stroke="#5a8a40" stroke-width="1.3" fill="none"/>
+        <ellipse cx="237" cy="161" rx="4" ry="3" fill="#7aba60" opacity="0.7"/>
+        <ellipse cx="258" cy="160" rx="4" ry="3" fill="#7aba60" opacity="0.7"/>
+        <line x1="300" y1="197" x2="298" y2="174" stroke="#4a7a38" stroke-width="1.8"/>
+        <path d="M298 174 Q292 163 289 168" stroke="#4a7a38" stroke-width="1.3" fill="none"/>
+        <path d="M298 174 Q303 163 307 167" stroke="#4a7a38" stroke-width="1.3" fill="none"/>
+        <text x="248" y="157" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="9" fill="#4a7a38" font-style="italic">live cuttings sprouting</text>
+        <!-- upslope grass -->
+        <path d="M430 173 Q431 163 432 173" stroke="#4caf50" stroke-width="1.5" fill="none"/>
+        <path d="M438 171 Q440 160 442 171" stroke="#388e3c" stroke-width="1.5" fill="none"/>
+        <path d="M500 168 Q502 158 504 168" stroke="#4caf50" stroke-width="1.5" fill="none"/>
+        <path d="M565 163 Q567 152 569 163" stroke="#388e3c" stroke-width="1.5" fill="none"/>
+        <!-- flow arrow -->
+        <path d="M78 188 L132 196" stroke="#5a9acc" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+        <text x="60" y="184" font-family="'DM Sans',sans-serif" font-size="9" fill="#3a7aaa" font-style="italic">surface flow</text>
+      `;
+    }
+  }
+};
+
+var currentStructure = 'crib';
+var sensorColors = {moisture:'#1a7a58', ph:'#aa2c2c', disp:'#9a6010', temp:'#1a5080'};
+var statusColors = {ok:'#1a7a58', warning:'#9a6010', alert:'#aa2c2c'};
+
+function drawLegend(g) {
+  g.innerHTML = `
+    <rect x="492" y="118" width="216" height="106" rx="6" fill="white" fill-opacity="0.93" stroke="#ccc" stroke-width="0.8"/>
+    <text x="505" y="135" font-family="'DM Sans',sans-serif" font-size="11" fill="#444" font-weight="500">Sensor types</text>
+    <circle cx="505" cy="151" r="7" fill="#1a7a58"/>
+    <text x="518" y="155" font-family="'DM Sans',sans-serif" font-size="11" fill="#555">Soil moisture</text>
+    <circle cx="505" cy="169" r="7" fill="#aa2c2c"/>
+    <text x="518" y="173" font-family="'DM Sans',sans-serif" font-size="11" fill="#555">pH sensor</text>
+    <rect x="498" y="182" width="14" height="14" rx="2" fill="#9a6010"/>
+    <text x="518" y="193" font-family="'DM Sans',sans-serif" font-size="11" fill="#555">Displacement</text>
+    <polygon points="505,200 498,213 512,213" fill="#1a5080"/>
+    <text x="518" y="211" font-family="'DM Sans',sans-serif" font-size="11" fill="#555">Temperature</text>
+    <rect x="492" y="232" width="216" height="60" rx="6" fill="white" fill-opacity="0.93" stroke="#ccc" stroke-width="0.8"/>
+    <text x="505" y="249" font-family="'DM Sans',sans-serif" font-size="11" fill="#444" font-weight="500">Status ring</text>
+    <circle cx="505" cy="264" r="7" fill="none" stroke="#1a7a58" stroke-width="2.2"/>
+    <text x="518" y="268" font-family="'DM Sans',sans-serif" font-size="11" fill="#555">Normal</text>
+    <circle cx="575" cy="264" r="7" fill="none" stroke="#9a6010" stroke-width="2.2"/>
+    <text x="588" y="268" font-family="'DM Sans',sans-serif" font-size="11" fill="#555">Caution</text>
+    <circle cx="505" cy="282" r="7" fill="none" stroke="#aa2c2c" stroke-width="2.2"/>
+    <text x="518" y="286" font-family="'DM Sans',sans-serif" font-size="11" fill="#555">Alert</text>
+  `;
+}
+
+function switchStructure() {
+  currentStructure = document.getElementById('structureType').value;
+  var s = structures[currentStructure];
+  s.draw(document.getElementById('structure-bg'));
+  drawLegend(document.getElementById('legend-layer'));
+  renderSensors();
+  document.getElementById('structure-info-box').innerHTML = s.description;
+  document.getElementById('hotspot-structure-name').textContent = s.name;
+  document.getElementById('hotspot-list').innerHTML = s.hotspots.map(function(h) {
+    return '<div class="hotspot-item"><div class="hotspot-dot" style="background:'+h.color+'"></div><div><div class="hotspot-label">'+h.label+'</div><div class="hotspot-desc">'+h.desc+'</div></div></div>';
+  }).join('');
+}
+
+function renderSensors() {
+  var show = {
+    moisture: document.getElementById('chk-moisture').checked,
+    ph: document.getElementById('chk-ph').checked,
+    disp: document.getElementById('chk-disp').checked,
+    temp: document.getElementById('chk-temp').checked
+  };
+  var layer = document.getElementById('sensor-layer');
+  layer.innerHTML = '';
+  structures[currentStructure].sensors.forEach(function(s) {
+    if(!show[s.type]) return;
+    var sc = statusColors[s.status], fc = sensorColors[s.type];
+    var g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.style.cursor = 'pointer';
+    var pulse = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    pulse.setAttribute('cx',s.x); pulse.setAttribute('cy',s.y); pulse.setAttribute('r',14);
+    pulse.setAttribute('fill',sc); pulse.setAttribute('opacity','0.12');
+    g.appendChild(pulse);
+    var ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    ring.setAttribute('cx',s.x); ring.setAttribute('cy',s.y); ring.setAttribute('r',11);
+    ring.setAttribute('fill','none'); ring.setAttribute('stroke',sc); ring.setAttribute('stroke-width','2.2');
+    g.appendChild(ring);
+    if(s.type==='disp') {
+      var sq = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      sq.setAttribute('x',s.x-6); sq.setAttribute('y',s.y-6);
+      sq.setAttribute('width',12); sq.setAttribute('height',12); sq.setAttribute('rx',2); sq.setAttribute('fill',fc);
+      g.appendChild(sq);
+    } else if(s.type==='temp') {
+      var tri = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+      tri.setAttribute('points',s.x+','+(s.y-7)+' '+(s.x-6)+','+(s.y+5)+' '+(s.x+6)+','+(s.y+5));
+      tri.setAttribute('fill',fc);
+      g.appendChild(tri);
+    } else {
+      var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx',s.x); dot.setAttribute('cy',s.y); dot.setAttribute('r',7); dot.setAttribute('fill',fc);
+      g.appendChild(dot);
+    }
+    var lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('x',s.x); lbl.setAttribute('y',s.y+22);
+    lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('font-size','9');
+    lbl.setAttribute('font-family',"'DM Mono',monospace"); lbl.setAttribute('fill','#555');
+    lbl.textContent = s.id;
+    g.appendChild(lbl);
+    g.addEventListener('mouseenter', function(e){ showTooltip(e,s); });
+    g.addEventListener('mouseleave', function(){ document.getElementById('map-tooltip').style.display='none'; });
+    g.addEventListener('click', function(e){ showTooltip(e,s,true); });
+    layer.appendChild(g);
+  });
+}
+
+function showTooltip(e, s, pin) {
+  var tt = document.getElementById('map-tooltip');
+  var sc = statusColors[s.status];
+  var statusLabel = {ok:'Normal',warning:'Caution',alert:'Alert'}[s.status];
+  var pct = Math.round(((s.val-s.min)/(s.max-s.min))*100);
+  tt.innerHTML =
+    '<div class="tooltip-title">'+s.label+'</div>'+
+    '<div class="tooltip-row"><span>Zone</span><span style="font-family:inherit;font-weight:400;font-size:12px;">'+s.zone+'</span></div>'+
+    '<div class="tooltip-row"><span>Reading</span><span>'+s.val+' '+s.unit+'</span></div>'+
+    '<div class="tooltip-row"><span>Target range</span><span>'+s.min+'–'+s.max+' '+s.unit+'</span></div>'+
+    '<div class="tooltip-row"><span>Status</span><span style="color:'+sc+';">'+statusLabel+'</span></div>'+
+    '<div class="progress-bar" style="margin-top:8px;"><div class="progress-fill" style="width:'+pct+'%;background:'+sc+';"></div></div>'+
+    '<div class="tooltip-why">Why here: '+s.why+'</div>';
+  var wrap = document.querySelector('.map-wrap');
+  var wrapRect = wrap.getBoundingClientRect();
+  var svg = document.getElementById('mapSvg');
+  var svgRect = svg.getBoundingClientRect();
+  var scaleX = svgRect.width/720, scaleY = svgRect.height/320;
+  var px = s.x*scaleX + (svgRect.left - wrapRect.left);
+  var py = s.y*scaleY + (svgRect.top - wrapRect.top);
+  var left = px+18;
+  if(left+230 > wrap.offsetWidth) left = px-240;
+  tt.style.left = left+'px';
+  tt.style.top = Math.max(4, py-24)+'px';
+  tt.style.display = 'block';
+  if(pin) setTimeout(function(){ tt.style.display='none'; }, 5000);
+}
+
+/* ===== HEALTH ===== */
+var trendChart = null;
+function initHealth() {
+  var params = [
+    {name:'Avg soil moisture',val:50,unit:'%',min:20,max:60,status:'warning'},
+    {name:'Avg soil pH',val:6.0,unit:'',min:5.5,max:7.5,status:'ok'},
+    {name:'Max displacement',val:4.7,unit:'mm',min:0,max:5,status:'warning'},
+    {name:'Soil temperature',val:15.2,unit:'°C',min:5,max:35,status:'ok'}
+  ];
+  document.getElementById('param-list').innerHTML = params.map(function(p) {
+    var pct = Math.round(((p.val-p.min)/(p.max-p.min))*100);
+    var sc = statusColors[p.status];
+    var bdg = {ok:'badge-green',warning:'badge-amber',alert:'badge-red'}[p.status];
+    var lbl = {ok:'Normal',warning:'Caution',alert:'Alert'}[p.status];
+    return '<div class="param-row"><div class="param-info"><div class="param-name"><span>'+p.name+'</span><span class="param-val">'+p.val+' '+p.unit+'</span></div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;background:'+sc+';"></div></div></div><span class="badge '+bdg+'" style="margin-left:12px;flex-shrink:0;">'+lbl+'</span></div>';
+  }).join('');
+  if(trendChart) { trendChart.destroy(); trendChart=null; }
+  var ctx = document.getElementById('trendChart').getContext('2d');
+  trendChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      datasets:[
+        {label:'Overall',data:[78,80,76,82,85,81,82],borderColor:'#1a7a58',backgroundColor:'rgba(26,122,88,0.07)',tension:0.4,pointRadius:3,fill:true},
+        {label:'Geo',data:[85,86,83,88,90,87,88],borderColor:'#1a5080',tension:0.4,pointRadius:3},
+        {label:'Eco',data:[68,70,65,72,76,71,71],borderColor:'#9a6010',tension:0.4,pointRadius:3,borderDash:[4,3]}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{min:50,max:100,ticks:{font:{size:11},color:'#888'},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:11},color:'#888'},grid:{display:false}}}}
+  });
+}
+
+function simulateUpdate() {
+  structures[currentStructure].sensors.forEach(function(s) {
+    var r=s.max-s.min;
+    s.val=Math.round((s.min+Math.random()*r)*10)/10;
+    s.status=s.val>s.min+r*0.85?'alert':s.val>s.min+r*0.70?'warning':'ok';
+  });
+  var o=Math.round(60+Math.random()*30),geo=Math.round(65+Math.random()*25),eco=Math.round(55+Math.random()*35);
+  ['overall','geo','eco'].forEach(function(k,i){
+    var v=[o,geo,eco][i];
+    document.getElementById('hi-'+k).textContent=v;
+    document.getElementById('hi-'+k).style.color=v>70?'var(--green)':v>50?'var(--amber)':'var(--red)';
+  });
+  initHealth(); renderSensors();
+}
+
+/* ===== WIZARD ===== */
+var wizardState={};
+var wzRec={
+  low:{sensors:'Capacitive soil moisture ×3, simple pH probe ×1',gateway:'ESP32 + LoRa module',connectivity:'LoRaWAN via The Things Network (free)',platform:'ThingSpeak (free tier)',interval:'Every 30 min',cost:'~€150–300',note:'Suitable for small pilot deployments. Limited real-time capability.'},
+  mid:{sensors:'Capacitive moisture ×6, pH ×2, tilt sensor ×2, DHT22 temp ×2',gateway:'Raspberry Pi 4 + 4G module',connectivity:'4G/LTE or site WiFi',platform:'Node-RED + InfluxDB + Grafana (open source)',interval:'Every 15 min',cost:'~€500–1,200',note:'Best balance of capability and cost for most projects.'},
+  high:{sensors:'TDR moisture ×8, multi-pH array ×4, MEMS displacement ×4, soil tension ×2',gateway:'Industrial IoT gateway (e.g. Advantech)',connectivity:'4G + LoRa redundancy, VPN-secured',platform:'AWS IoT Core + custom dashboard',interval:'Every 5 min or continuous',cost:'~€2,000–8,000+',note:'Recommended for large-scale or EU-funded restoration projects.'}
+};
+var wzLbl={structure:{crib:'Live crib wall',slope:'Vegetated slope',bank:'Riverbank',fascine:'Fascine / brush drain'},goal:{stability:'Geotechnical stability',ecology:'Ecological health',both:'Both'},budget:{low:'<€500',mid:'€500–2,000',high:'>€2,000'}};
+var goalNotes={stability:'Prioritise displacement and pore water pressure sensors at structural joints and the toe.',ecology:'Prioritise soil moisture and pH sensors in the root zone and upslope catchment.',both:'Distribute sensors across structural joints, root zones, and upslope areas equally.'};
+
+function selectWizard(key,val,btn) {
+  wizardState[key]=val;
+  var idx=['structure','goal','budget'].indexOf(key);
+  document.querySelectorAll('.wizard-options')[idx].querySelectorAll('.wizard-btn').forEach(function(b){ b.classList.remove('selected'); });
+  btn.classList.add('selected');
+  if(wizardState.structure&&wizardState.goal&&wizardState.budget) renderWizardOutput();
+}
+function renderWizardOutput() {
+  var r=wzRec[wizardState.budget];
+  document.getElementById('wizard-context').innerHTML='<strong>'+wzLbl.structure[wizardState.structure]+'</strong> &nbsp;·&nbsp; '+wzLbl.goal[wizardState.goal]+' &nbsp;·&nbsp; Budget: '+wzLbl.budget[wizardState.budget]+'<br><span style="opacity:0.85;">'+goalNotes[wizardState.goal]+'</span>';
+  document.getElementById('wizard-result').innerHTML=[['Recommended sensors',r.sensors],['Gateway',r.gateway],['Connectivity',r.connectivity],['Platform',r.platform],['Sampling interval',r.interval],['Est. hardware cost',r.cost],['Notes',r.note]].map(function(row){
+    return '<div class="protocol-row"><div class="protocol-key">'+row[0]+'</div><div class="protocol-val">'+row[1]+'</div></div>';
+  }).join('');
+  document.getElementById('wizard-output').style.display='block';
+}
+function exportProtocol() {
+  if(!wizardState.budget) return;
+  var r=wzRec[wizardState.budget];
+  var txt=['IoTCM — Monitoring Protocol','============================','','Structure:   '+wzLbl.structure[wizardState.structure],'Goal:        '+wzLbl.goal[wizardState.goal],'Budget:      '+wzLbl.budget[wizardState.budget],'','--- Recommended Setup ---','','Sensors:      '+r.sensors,'Gateway:      '+r.gateway,'Connectivity: '+r.connectivity,'Platform:     '+r.platform,'Interval:     '+r.interval,'Est. cost:    '+r.cost,'','Placement:    '+goalNotes[wizardState.goal],'Notes:        '+r.note,'','---','Generated by IoTCM — Soil & Water Bioengineering Prototype'].join('\n');
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));
+  a.download='iotcm-monitoring-protocol.txt'; a.click();
+}
+
+/* ===== IOT LAYERS ===== */
+var iotLayers=[
+  {color:'#d6f0e5',iconColor:'#1a7a58',icon:'<path d="M5 12.55a11 11 0 0114.08 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><circle cx="12" cy="20" r="1" fill="#1a7a58"/>',title:'Layer 1 — Perception',sub:'In-field sensors and measurement devices',open:true,items:['Soil moisture sensors (capacitive or TDR — Time Domain Reflectometry)','pH electrodes (analogue probe or digital I²C module)','Tilt sensors / MEMS accelerometers for displacement monitoring','Thermocouples or thermistors for soil temperature at depth','Optional: tensiometers (pore water pressure), tipping-bucket rain gauge']},
+  {color:'#deeaf7',iconColor:'#1a5080',icon:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3l-4 4-4-4"/>',title:'Layer 2 — Network',sub:'Data transmission and communication',open:false,items:['LoRa / LoRaWAN: long-range, low-power radio — ideal for remote or off-grid sites','4G/LTE cellular modem: real-time uplink where mobile coverage is available','MQTT or HTTP protocols for lightweight data push to cloud','Edge gateway device (Raspberry Pi, Arduino MKR, or ESP32)','Solar-powered, IP67-rated waterproof enclosures for outdoor deployment']},
+  {color:'#fdf0d6',iconColor:'#9a6010',icon:'<path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/>',title:'Layer 3 — Support / Cloud',sub:'Data storage, processing and alerting',open:false,items:['Cloud ingestion: AWS IoT Core, ThingsBoard (open source), or The Things Network','Time-series database: InfluxDB or TimescaleDB for efficient sensor data storage','Pre-processing pipeline: outlier removal, gap-filling, unit conversion','Alert engine: email or SMS notification on threshold breach','REST API for downstream dashboard and reporting integration']},
+  {color:'#e8e6f8',iconColor:'#3c3489',icon:'<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',title:'Layer 4 — Application',sub:'User interface, health index, reporting',open:false,items:['Aggregated health index dashboard (geotechnical + ecological scores)','Sensor placement map with real-time status visualisation (this tool)','EU Nature Restoration Law compliance indicator tracking','Automated report generation for site managers and regulatory authorities','CSV / JSON data export for third-party analysis and academic use']}
+];
+function initIoT() {
+  var acc=document.getElementById('iot-accordion');
+  if(acc.children.length>0) return;
+  iotLayers.forEach(function(l,i){
+    var div=document.createElement('div'); div.className='layer-item';
+    div.innerHTML='<div class="layer-header" onclick="toggleLayer('+i+')"><div class="layer-icon" style="background:'+l.color+';"><svg viewBox="0 0 24 24" fill="none" stroke="'+l.iconColor+'" stroke-width="1.8">'+l.icon+'</svg></div><div><div class="layer-title">'+l.title+'</div><div class="layer-sub">'+l.sub+'</div></div><svg class="layer-chevron'+(l.open?' open':'')+'" id="chev-'+i+'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div><div class="layer-body'+(l.open?' open':'')+'" id="lbody-'+i+'">'+l.items.map(function(item){ return '<div class="layer-item-row"><div class="layer-dot"></div><div>'+item+'</div></div>'; }).join('')+'</div>';
+    acc.appendChild(div);
+  });
+}
+function toggleLayer(i){ var b=document.getElementById('lbody-'+i),c=document.getElementById('chev-'+i),o=b.classList.contains('open'); b.classList.toggle('open',!o); c.classList.toggle('open',!o); }
+
+/* ===== NAV ===== */
+function showScreen(name,el) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('screen-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+  if(name==='health') initHealth();
+  if(name==='iot') initIoT();
+}
+
+/* ===== INIT ===== */
+switchStructure();
+</script>
+</body>
+</html>
